@@ -1,0 +1,32 @@
+[project]
+name = "cinematch-ai"
+version = "0.1.0"
+description = "Production-grade movie discovery and personalized recommendation platform."
+requires-python = ">=3.12"
+readme = "README.md"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["backend"]
+extend-exclude = ["backend/*/migrations/*.py", "backend/apps/*/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config", "ml"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+pythonpath = ["backend"]
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+testpaths = ["backend/tests"]
+markers = [
+    "integration: exercises external services such as Redis when available",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

@@ -1,0 +1,39 @@
+{
+  "description": "Project load-test acceptance targets (not universal production SLOs).",
+  "note": "A run passes only when measured HTTP metrics meet these thresholds for the chosen scenario. Completing a run is not success by itself.",
+  "thresholds": {
+    "error_rate_pct_max": 1.0,
+    "timeout_rate_pct_max": 0.5,
+    "p95_home_ms_max": 2000,
+    "p95_movies_list_ms_max": 800,
+    "p95_movie_detail_ms_max": 500,
+    "p95_search_ms_max": 1500,
+    "p99_home_ms_max": 4000
+  },
+  "scenarios": {
+    "low": {
+      "users": 50,
+      "spawn_rate": 5,
+      "run_time": "2m",
+      "description": "Low traffic smoke"
+    },
+    "normal": {
+      "users": 100,
+      "spawn_rate": 10,
+      "run_time": "5m",
+      "description": "Normal concurrent traffic"
+    },
+    "sustained": {
+      "users": 250,
+      "spawn_rate": 20,
+      "run_time": "10m",
+      "description": "Sustained elevated traffic"
+    },
+    "burst": {
+      "users": 500,
+      "spawn_rate": 100,
+      "run_time": "3m",
+      "description": "Short burst / spike"
+    }
+  }
+}

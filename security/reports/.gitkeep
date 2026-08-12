@@ -1,0 +1,5 @@
+# Security reports (generated)
+
+JSON/table outputs from `pip-audit`, `npm audit`, and Trivy land here during CI or local runs.
+
+Do not commit generated reports. Keep this directory via `.gitkeep`.

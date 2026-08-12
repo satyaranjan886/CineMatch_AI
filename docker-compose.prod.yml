@@ -1,0 +1,225 @@
+# Production-oriented Compose stack.
+# Use with a secrets-bearing env file that is NEVER committed:
+#   cp .env.production.example .env.production
+#   # fill secrets offline
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up --build -d
+#
+# This file is a reference architecture for single-host / EC2 deployments.
+# It does not provision a cloud account and does not contain credentials.
+
+name: cinematch-prod
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cinematch
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "${REDIS_PASSWORD}",
+        "--appendonly",
+        "yes",
+      ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - cinematch
+
+  backend:
+    image: ${BACKEND_IMAGE:-cinematch-backend:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      # migrate/collectstatic once per deploy; set false when scaling API replicas
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      COLLECTSTATIC: ${COLLECTSTATIC:-true}
+      CF_MODEL_ARTIFACT_DIR: /app/collaborative_models
+      PROMETHEUS_MULTIPROC_DIR: /tmp/cinematch-prometheus
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
+    volumes:
+      - staticfiles:/app/staticfiles
+      - mediafiles:/app/media
+      - collaborative_models:/app/collaborative_models
+      # Prometheus multiproc stays container-local (/tmp); do not share across replicas.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    networks:
+      - cinematch
+
+  celery_worker:
+    image: ${BACKEND_IMAGE:-cinematch-backend:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["celery", "-A", "config.celery", "worker", "--loglevel=INFO"]
+    env_file:
+      - .env.production
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      RUN_MIGRATIONS: "false"
+      COLLECTSTATIC: "false"
+      CF_MODEL_ARTIFACT_DIR: /app/collaborative_models
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
+    volumes:
+      - collaborative_models:/app/collaborative_models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A config.celery inspect ping -d celery@$$HOSTNAME | grep -q pong",
+        ]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 60s
+    networks:
+      - cinematch
+
+  celery_beat:
+    image: ${BACKEND_IMAGE:-cinematch-backend:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["celery", "-A", "config.celery", "beat", "--loglevel=INFO"]
+    env_file:
+      - .env.production
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      RUN_MIGRATIONS: "false"
+      COLLECTSTATIC: "false"
+      CF_MODEL_ARTIFACT_DIR: /app/collaborative_models
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    networks:
+      - cinematch
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-cinematch-frontend:local}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://app.example.com}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_URL: http://backend:8000
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - cinematch
+
+  nginx:
+    image: ${NGINX_IMAGE:-cinematch-nginx:local}
+    build:
+      context: ./infrastructure/nginx
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # true = on-box TLS (requires cert mounts). false = HTTP behind ALB/Cloudflare TLS.
+      TLS_ENABLED: ${TLS_ENABLED:-false}
+      SERVER_NAME: ${SERVER_NAME:-_}
+      TLS_CERT_FILE: ${TLS_CERT_FILE:-/etc/nginx/certs/fullchain.pem}
+      TLS_KEY_FILE: ${TLS_KEY_FILE:-/etc/nginx/certs/privkey.pem}
+    ports:
+      - "80:80"
+      - "${TLS_HTTPS_PORT:-443}:443"
+    volumes:
+      - staticfiles:/var/www/static:ro
+      - mediafiles:/var/www/media:ro
+      # Mount host certs only when TLS_ENABLED=true (paths from env, never committed):
+      # - ${TLS_CERT_HOST_PATH}:/etc/nginx/certs/fullchain.pem:ro
+      # - ${TLS_KEY_HOST_PATH}:/etc/nginx/certs/privkey.pem:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - cinematch
+
+networks:
+  cinematch:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  staticfiles:
+  mediafiles:
+  collaborative_models:

@@ -1,0 +1,9 @@
+# Non-secret example values only. Copy to terraform.tfvars locally (gitignored).
+aws_region         = "us-east-1"
+environment        = "staging"
+availability_zones = ["us-east-1a", "us-east-1b"]
+compute_mode       = "ecs"
+api_desired_count  = 2
+celery_desired_count = 2
+# domain_name      = "app.example.com"
+# app_secrets_arn  = "arn:aws:secretsmanager:us-east-1:123456789012:secret:cinematch/app-XXXX"

@@ -1,0 +1,1 @@
+"""Interactions application package."""

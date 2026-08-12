@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Generated security scan reports (keep directory)
+security/reports/*
+!security/reports/.gitkeep
+
+# Locust raw outputs
+loadtests/results/*
+!loadtests/results/.gitkeep
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+!.env.example
+!.env.production.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+credentials.json
+service-account*.json
+
+# Django
+*.log
+local_settings.py
+staticfiles/
+media/
+
+# Node / frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+node_modules/
+.next/
+out/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Docker
+docker-data/
+
+# ML artifacts (generated later)
+backend/ml/artifacts/
+*.joblib
+*.pkl
+*.faiss
+
+# Terraform (never commit state or secret tfvars)
+infrastructure/aws/terraform/.terraform/
+infrastructure/aws/terraform/*.tfstate
+infrastructure/aws/terraform/*.tfstate.*
+infrastructure/aws/terraform/terraform.tfvars
+infrastructure/aws/terraform/crash.log

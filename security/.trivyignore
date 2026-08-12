@@ -1,0 +1,9 @@
+# Trivy ignore file for production image scans.
+# Each entry MUST include a reason. Prefer fixing/upgrading over ignoring.
+#
+# Format: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+#
+# Example (disabled — add real IDs only with documented exceptions):
+# CVE-YYYY-NNNNN
+#   # reason: short explanation; tracked in docs/security/dependency-management.md
+#   # expires: 2026-12-31

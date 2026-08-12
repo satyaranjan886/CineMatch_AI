@@ -1,0 +1,130 @@
+{
+  "genres": [
+    {"name": "Science Fiction", "slug": "science-fiction"},
+    {"name": "Drama", "slug": "drama"},
+    {"name": "Thriller", "slug": "thriller"},
+    {"name": "Comedy", "slug": "comedy"},
+    {"name": "Adventure", "slug": "adventure"}
+  ],
+  "actors": [
+    {"name": "Alex Rivera"},
+    {"name": "Jordan Chen"},
+    {"name": "Samira Okonkwo"},
+    {"name": "Morgan Blake"}
+  ],
+  "directors": [
+    {"name": "Elena Vasquez"},
+    {"name": "Theo Nakamura"},
+    {"name": "Priya Sharma"}
+  ],
+  "movies": [
+    {
+      "title": "Echoes of Tomorrow",
+      "original_title": "Echoes of Tomorrow",
+      "overview": "A physicist discovers signals from alternate timelines and must decide which future to preserve.",
+      "tagline": "Every choice echoes forever.",
+      "release_date": "2024-03-15",
+      "runtime": 128,
+      "language": "en",
+      "country": "US",
+      "popularity": 84.2,
+      "vote_average": 8.1,
+      "vote_count": 1240,
+      "poster_url": "https://placehold.co/300x450?text=Echoes",
+      "backdrop_url": "https://placehold.co/1280x720?text=Echoes",
+      "status": "released",
+      "genres": ["science-fiction", "drama"],
+      "actors": [
+        {"name": "Alex Rivera", "character_name": "Dr. Lena Cross", "billing_order": 1},
+        {"name": "Jordan Chen", "character_name": "Agent Hale", "billing_order": 2}
+      ],
+      "directors": ["Elena Vasquez"]
+    },
+    {
+      "title": "Midnight Cartography",
+      "original_title": "Midnight Cartography",
+      "overview": "A street cartographer maps hidden city routes that reveal a conspiracy spanning decades.",
+      "tagline": "The city has secrets.",
+      "release_date": "2023-09-22",
+      "runtime": 112,
+      "language": "en",
+      "country": "GB",
+      "popularity": 71.5,
+      "vote_average": 7.6,
+      "vote_count": 890,
+      "poster_url": "https://placehold.co/300x450?text=Cartography",
+      "backdrop_url": "https://placehold.co/1280x720?text=Cartography",
+      "status": "released",
+      "genres": ["thriller", "drama"],
+      "actors": [
+        {"name": "Samira Okonkwo", "character_name": "Nadia Cole", "billing_order": 1}
+      ],
+      "directors": ["Theo Nakamura"]
+    },
+    {
+      "title": "Starlight Salvage",
+      "original_title": "Starlight Salvage",
+      "overview": "A salvage crew finds a derelict station with a crew that never aged.",
+      "tagline": "Salvage the impossible.",
+      "release_date": "2022-11-04",
+      "runtime": 136,
+      "language": "en",
+      "country": "US",
+      "popularity": 92.8,
+      "vote_average": 8.4,
+      "vote_count": 2100,
+      "poster_url": "https://placehold.co/300x450?text=Starlight",
+      "backdrop_url": "https://placehold.co/1280x720?text=Starlight",
+      "status": "released",
+      "genres": ["science-fiction", "adventure"],
+      "actors": [
+        {"name": "Morgan Blake", "character_name": "Captain Reeves", "billing_order": 1},
+        {"name": "Alex Rivera", "character_name": "Engineer Paz", "billing_order": 2}
+      ],
+      "directors": ["Priya Sharma"]
+    },
+    {
+      "title": "The Last Laugh Club",
+      "original_title": "The Last Laugh Club",
+      "overview": "Retired comedians reunite for one final show that spirals into unexpected chaos.",
+      "tagline": "Comedy never retires.",
+      "release_date": "2021-06-18",
+      "runtime": 98,
+      "language": "en",
+      "country": "US",
+      "popularity": 55.3,
+      "vote_average": 7.2,
+      "vote_count": 430,
+      "poster_url": "https://placehold.co/300x450?text=Laugh+Club",
+      "backdrop_url": "https://placehold.co/1280x720?text=Laugh+Club",
+      "status": "released",
+      "genres": ["comedy", "drama"],
+      "actors": [
+        {"name": "Jordan Chen", "character_name": "Mickey Torres", "billing_order": 1}
+      ],
+      "directors": ["Elena Vasquez"]
+    },
+    {
+      "title": "Neon Drift",
+      "original_title": "Neon Drift",
+      "overview": "Underground racers uncover a corporate plot to control autonomous transit networks.",
+      "tagline": "Race the future.",
+      "release_date": "2024-08-01",
+      "runtime": 118,
+      "language": "en",
+      "country": "JP",
+      "popularity": 88.0,
+      "vote_average": 7.9,
+      "vote_count": 760,
+      "poster_url": "https://placehold.co/300x450?text=Neon+Drift",
+      "backdrop_url": "https://placehold.co/1280x720?text=Neon+Drift",
+      "status": "released",
+      "genres": ["science-fiction", "thriller", "adventure"],
+      "actors": [
+        {"name": "Samira Okonkwo", "character_name": "Kira Tan", "billing_order": 1},
+        {"name": "Morgan Blake", "character_name": "Dex Voss", "billing_order": 2}
+      ],
+      "directors": ["Theo Nakamura"]
+    }
+  ]
+}

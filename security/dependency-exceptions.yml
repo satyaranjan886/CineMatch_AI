@@ -1,0 +1,48 @@
+# Documented dependency / container vulnerability exceptions.
+#
+# Policy: CI fails on CRITICAL and HIGH findings unless listed here with a
+# non-expired exception. Moderate/low/info findings are reported but do not fail.
+#
+# Adding an exception is a conscious risk acceptance — keep reason/expires current.
+
+policy:
+  fail_severities:
+    - critical
+    - high
+  report_severities:
+    - critical
+    - high
+    - moderate
+
+# Python (pip-audit IDs such as PYSEC-… / GHSA-…)
+python: []
+
+# npm advisory IDs (GHSA-…) from `npm audit --omit=dev --json`
+# These are transitive via next@15; fixes currently require next@16 (breaking).
+npm:
+  - id: GHSA-6g55-p6wh-862q
+    package: postcss
+    severity: high
+    reason: >
+      Transitive via next@15. Fix available only through next@16 (breaking).
+      Do not run `npm audit fix --force` on the main branch without a dedicated upgrade.
+    expires: "2026-12-31"
+
+  - id: GHSA-r28c-9q8g-f849
+    package: postcss
+    severity: high
+    reason: >
+      Transitive via next@15 postcss pin. Same Next 16 upgrade track as above.
+    expires: "2026-12-31"
+
+  - id: GHSA-f88m-g3jw-g9cj
+    package: sharp
+    severity: high
+    reason: >
+      sharp/libvips CVEs inherited through next/image pipeline on next@15.
+      Upgrade path is next@16 / sharp>=0.35 — schedule a frontend major bump.
+    expires: "2026-12-31"
+
+# Container (Trivy vulnerability IDs). Prefer .trivyignore for scanner-native ignores;
+# keep narrative exceptions here for human review.
+container: []

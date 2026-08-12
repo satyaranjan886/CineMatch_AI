@@ -1,0 +1,308 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  backend:
+    name: Backend (Lint + Tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: cinematch
+          POSTGRES_USER: cinematch
+          POSTGRES_PASSWORD: cinematch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cinematch -d cinematch"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      SECRET_KEY: ci-secret-key-not-for-production
+      DATABASE_URL: postgres://cinematch:cinematch@localhost:5432/cinematch
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/1
+      CELERY_RESULT_BACKEND: redis://localhost:6379/2
+      USE_REDIS_CACHE: "1"
+      CI: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements/base.txt
+            requirements/dev.txt
+            requirements/prod.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/dev.txt
+
+      - name: Lint
+        run: ruff check backend
+
+      - name: Format check
+        run: ruff format --check backend
+
+      - name: Django system checks
+        working-directory: backend
+        run: python manage.py check
+
+      - name: Migration check
+        working-directory: backend
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Tests
+        run: pytest backend/tests --reuse-db -q
+
+  frontend:
+    name: Frontend (Lint + Typecheck + Tests + Build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:8000
+          API_INTERNAL_URL: http://127.0.0.1:8000
+
+  dependency-security:
+    name: Dependency Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements/prod.txt
+            requirements/security.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python security tooling + prod deps for audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/security.txt
+          pip install -r requirements/prod.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Python dependency audit (CRITICAL/HIGH gate)
+        run: python scripts/security/check_dependency_vulns.py python
+
+      - name: npm dependency audit (CRITICAL/HIGH gate)
+        run: python scripts/security/check_dependency_vulns.py npm
+
+      - name: Upload dependency audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-security-reports
+          path: security/reports/
+          if-no-files-found: warn
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Compose files
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose \
+            -f docker-compose.prod.yml \
+            --env-file .env.production.example \
+            config --quiet
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: cinematch-backend:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: frontend/Dockerfile
+          push: false
+          tags: cinematch-frontend:ci
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Build nginx image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./infrastructure/nginx
+          file: infrastructure/nginx/Dockerfile
+          push: false
+          tags: cinematch-nginx:ci
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,mode=max,scope=nginx
+
+  container-security:
+    name: Container Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production backend image (for scan)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: cinematch-backend:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Prepare report directory
+        run: mkdir -p security/reports
+
+      - name: Scan production backend image (CRITICAL/HIGH)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: cinematch-backend:ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          format: table
+          output: security/reports/trivy-backend.txt
+          trivyignores: security/.trivyignore
+
+      - name: Write Trivy JSON report
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: cinematch-backend:ci
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+          ignore-unfixed: true
+          format: json
+          output: security/reports/trivy-backend.json
+          trivyignores: security/.trivyignore
+
+      - name: Upload container security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-security-reports
+          path: security/reports/
+          if-no-files-found: warn
+
+  ci-success:
+    name: CI passed
+    if: always()
+    needs: [backend, frontend, dependency-security, docker, container-security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        run: |
+          echo "backend=${{ needs.backend.result }}"
+          echo "frontend=${{ needs.frontend.result }}"
+          echo "dependency-security=${{ needs.dependency-security.result }}"
+          echo "docker=${{ needs.docker.result }}"
+          echo "container-security=${{ needs.container-security.result }}"
+          if [ "${{ needs.backend.result }}" != "success" ] \
+            || [ "${{ needs.frontend.result }}" != "success" ] \
+            || [ "${{ needs.dependency-security.result }}" != "success" ] \
+            || [ "${{ needs.docker.result }}" != "success" ] \
+            || [ "${{ needs.container-security.result }}" != "success" ]; then
+            echo "::error::One or more CI jobs failed"
+            exit 1
+          fi
+          echo "All CI jobs succeeded (Tests / Lint / Typecheck / Dependency Security / Container Security / Build)"
