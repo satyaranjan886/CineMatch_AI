@@ -1,13 +1,9 @@
 name: CD
 
-# Deploys to AWS only from the production branch after a successful CI run.
+# Deploys to AWS from the production branch when triggered manually.
 # Secrets live in GitHub Environment / repository secrets — never in the repo.
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       image_tag:
@@ -43,28 +39,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            REF="${{ github.ref }}"
-            SHA="${{ github.sha }}"
-            if [ "$REF" != "refs/heads/${{ env.PRODUCTION_BRANCH }}" ]; then
-              echo "::error::Manual deploy allowed only from ${{ env.PRODUCTION_BRANCH }} (got $REF)"
-              echo "should_deploy=false" >> "$GITHUB_OUTPUT"
-              exit 1
-            fi
-            SHOULD=true
-          else
-            CONCLUSION="${{ github.event.workflow_run.conclusion }}"
-            HEAD_BRANCH="${{ github.event.workflow_run.head_branch }}"
-            SHA="${{ github.event.workflow_run.head_sha }}"
-            if [ "$CONCLUSION" != "success" ]; then
-              echo "::warning::Skipping deploy — CI conclusion was '$CONCLUSION'"
-              SHOULD=false
-            elif [ "$HEAD_BRANCH" != "${{ env.PRODUCTION_BRANCH }}" ]; then
-              echo "::warning::Skipping deploy — CI branch was '$HEAD_BRANCH'"
-              SHOULD=false
-            else
-              SHOULD=true
-            fi
+          REF="${{ github.ref }}"
+          SHA="${{ github.sha }}"
+          if [ "$REF" != "refs/heads/${{ env.PRODUCTION_BRANCH }}" ]; then
+            echo "::error::Manual deploy allowed only from ${{ env.PRODUCTION_BRANCH }} (got $REF)"
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            exit 1
           fi
 
           SHORT="$(echo "$SHA" | cut -c1-12)"
@@ -77,10 +57,10 @@ jobs:
             echo "sha=$SHA"
             echo "short_sha=$SHORT"
             echo "image_tag=$TAG"
-            echo "should_deploy=$SHOULD"
+            echo "should_deploy=true"
           } >> "$GITHUB_OUTPUT"
 
-          echo "sha=$SHA short_sha=$SHORT image_tag=$TAG should_deploy=$SHOULD"
+          echo "sha=$SHA short_sha=$SHORT image_tag=$TAG should_deploy=true"
 
   release:
     name: Build, push, and deploy
