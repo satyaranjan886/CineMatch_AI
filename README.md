@@ -170,6 +170,14 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 2. Create a feature branch
 3. Open a pull request against `main`
 
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+---
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md). Do not open a public issue for security reports.
+
 ---
 
 ## License

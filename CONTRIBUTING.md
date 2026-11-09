@@ -32,6 +32,10 @@ make test
 - Frontend: TypeScript, ESLint, Next.js conventions
 - Prefer small, reviewable diffs
 
+## Community
+
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Security
 
-If you find a vulnerability, open a private report or contact the maintainers instead of filing a public issue with exploit details.
+If you find a vulnerability, follow [SECURITY.md](SECURITY.md). Do not file a public issue with exploit details.
